@@ -1,0 +1,61 @@
+{
+  "customers": {
+    "id": {
+      "type": "bigint",
+      "nullable": false,
+      "primary_key": true
+    },
+    "name": {
+      "type": "text",
+      "nullable": false,
+      "primary_key": false
+    },
+    "segment": {
+      "type": "text",
+      "nullable": false,
+      "primary_key": false
+    },
+    "updated_at": {
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "primary_key": false
+    }
+  },
+  "orders": {
+    "id": {
+      "type": "bigint",
+      "nullable": false,
+      "primary_key": true
+    },
+    "customer_id": {
+      "type": "bigint",
+      "nullable": false,
+      "primary_key": false
+    },
+    "currency": {
+      "type": "text",
+      "nullable": false,
+      "primary_key": false
+    },
+    "status": {
+      "type": "text",
+      "nullable": false,
+      "primary_key": false
+    },
+    "ordered_at": {
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "primary_key": false
+    },
+    "updated_at": {
+      "type": "timestamp with time zone",
+      "nullable": false,
+      "primary_key": false
+    },
+    "total_amount": {
+      "type": "bigint",
+      "nullable": false,
+      "primary_key": false
+    }
+  }
+}

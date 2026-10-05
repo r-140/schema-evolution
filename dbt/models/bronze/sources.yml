@@ -1,0 +1,10 @@
+version: 2
+sources:
+  - name: raw
+    schema: bronze
+    tables:
+      - name: events
+  - name: operations
+    schema: ops
+    tables:
+      - name: event_repairs

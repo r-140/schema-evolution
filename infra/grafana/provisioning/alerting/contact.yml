@@ -1,0 +1,16 @@
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: lab-webhook
+    receivers:
+      - uid: lab-webhook
+        type: webhook
+        settings:
+          url: http://lab:8090/alert-receiver
+policies:
+  - orgId: 1
+    receiver: lab-webhook
+    group_by: [alertname, project]
+    group_wait: 5s
+    group_interval: 30s
+    repeat_interval: 1h

@@ -1,0 +1,290 @@
+apiVersion: 1
+groups:
+- orgId: 1
+  name: schema-contracts
+  folder: Schema Evolution Lab
+  interval: 10s
+  rules:
+  - uid: breaking-change
+    title: 'Breaking schema: Gold held'
+    condition: C
+    for: 0s
+    noDataState: OK
+    execErrState: Error
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 60
+        to: 0
+      datasourceUid: prometheus
+      model:
+        refId: A
+        expr: schema_publication_blocked > bool 0
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+    - refId: C
+      relativeTimeRange:
+        from: 0
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: A
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 0
+          operator:
+            type: and
+          reducer:
+            type: last
+          query:
+            params:
+            - C
+    labels:
+      project: schema-lab
+      team: source-and-data
+    annotations:
+      summary: 'Breaking schema: Gold held'
+      description: Inspect http://localhost:8090/state. Schema review does not imply
+        data loss; resolve mapping and replay explicitly.
+  - uid: pending-review
+    title: Schema review pending too long
+    condition: C
+    for: 30s
+    noDataState: OK
+    execErrState: Error
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 60
+        to: 0
+      datasourceUid: prometheus
+      model:
+        refId: A
+        expr: schema_change_oldest_seconds > bool 120
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+    - refId: C
+      relativeTimeRange:
+        from: 0
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: A
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 0
+          operator:
+            type: and
+          reducer:
+            type: last
+          query:
+            params:
+            - C
+    labels:
+      project: schema-lab
+      team: source-and-data
+    annotations:
+      summary: Schema review pending too long
+      description: Inspect http://localhost:8090/state. Schema review does not imply
+        data loss; resolve mapping and replay explicitly.
+  - uid: unprojected-country
+    title: Country data needs historical replay
+    condition: C
+    for: 30s
+    noDataState: OK
+    execErrState: Error
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 60
+        to: 0
+      datasourceUid: prometheus
+      model:
+        refId: A
+        expr: schema_unprojected_country_events > bool 0
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+    - refId: C
+      relativeTimeRange:
+        from: 0
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: A
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 0
+          operator:
+            type: and
+          reducer:
+            type: last
+          query:
+            params:
+            - C
+    labels:
+      project: schema-lab
+      team: source-and-data
+    annotations:
+      summary: Country data needs historical replay
+      description: Inspect http://localhost:8090/state. Schema review does not imply
+        data loss; resolve mapping and replay explicitly.
+  - uid: observer-down
+    title: Schema observer unavailable
+    condition: C
+    for: 30s
+    noDataState: OK
+    execErrState: Error
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 60
+        to: 0
+      datasourceUid: prometheus
+      model:
+        refId: A
+        expr: schema_observer_up < bool 1
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+    - refId: C
+      relativeTimeRange:
+        from: 0
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: A
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 0
+          operator:
+            type: and
+          reducer:
+            type: last
+          query:
+            params:
+            - C
+    labels:
+      project: schema-lab
+      team: source-and-data
+    annotations:
+      summary: Schema observer unavailable
+      description: Inspect http://localhost:8090/state. Schema review does not imply
+        data loss; resolve mapping and replay explicitly.
+  - uid: gold-stale
+    title: Gold stale while projection has backlog
+    condition: C
+    for: 30s
+    noDataState: OK
+    execErrState: Error
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 60
+        to: 0
+      datasourceUid: prometheus
+      model:
+        refId: A
+        expr: (gold_age_seconds > bool 600) * (cdc_projection_backlog_events > bool
+          0)
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+    - refId: C
+      relativeTimeRange:
+        from: 0
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: A
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 0
+          operator:
+            type: and
+          reducer:
+            type: last
+          query:
+            params:
+            - C
+    labels:
+      project: schema-lab
+      team: source-and-data
+    annotations:
+      summary: Gold stale while projection has backlog
+      description: Inspect http://localhost:8090/state. Schema review does not imply
+        data loss; resolve mapping and replay explicitly.
+  - uid: etag-mismatch
+    title: Schema version precondition mismatch
+    condition: C
+    for: 0s
+    noDataState: OK
+    execErrState: Error
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 60
+        to: 0
+      datasourceUid: prometheus
+      model:
+        refId: A
+        expr: schema_etag_precondition_failed > bool 0
+        instant: true
+        intervalMs: 1000
+        maxDataPoints: 43200
+    - refId: C
+      relativeTimeRange:
+        from: 0
+        to: 0
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: A
+        conditions:
+        - type: query
+          evaluator:
+            type: gt
+            params:
+            - 0
+          operator:
+            type: and
+          reducer:
+            type: last
+          query:
+            params:
+            - C
+    labels:
+      project: schema-lab
+      team: source-and-data
+    annotations:
+      summary: Exact schema token differs from approved contract
+      description: Inspect http://localhost:8090/state. Schema review does not imply
+        data loss; resolve mapping and replay explicitly.

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+case "${1:-help}" in
+  up) mkdir -p artifacts; chmod 777 artifacts; docker compose up -d --build ;;
+  down) docker compose down ;;
+  logs) docker compose logs -f "${2:-lab}" ;;
+  sql) shift; docker compose exec -T clickhouse clickhouse-client --user lab --password lab --query "$*" ;;
+  source-sql) shift; docker compose exec -T source psql -U lab -d lab -c "$*" ;;
+  test) python3 -m unittest discover -s tests -v ;;
+  *) python3 bin/lab.py "$@" ;;
+esac

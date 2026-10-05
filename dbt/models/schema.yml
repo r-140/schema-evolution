@@ -1,0 +1,26 @@
+version: 2
+models:
+  - name: stg_orders
+    columns:
+      - name: event_id
+        tests: [unique, not_null]
+  - name: stg_customers
+    columns:
+      - name: event_id
+        tests: [unique, not_null]
+  - name: hub_customer
+    columns:
+      - name: customer_hk
+        tests: [unique, not_null]
+  - name: hub_order
+    columns:
+      - name: order_hk
+        tests: [unique, not_null]
+  - name: lnk_order_customer
+    columns:
+      - name: link_hk
+        tests: [unique, not_null]
+  - name: fact_order
+    columns:
+      - name: order_sk
+        tests: [unique, not_null]

@@ -1,0 +1,24 @@
+name: schema_evolution_lab
+version: '1.0.0'
+config-version: 2
+profile: schema_evolution_lab
+model-paths: [models]
+macro-paths: [macros]
+test-paths: [tests]
+clean-targets: [target, dbt_packages]
+query-comment:
+  comment: 'schema_lab_run={{ var("run_id", "manual") }} node_name={{ node.name if node else "connection" }} node_type={{ node.resource_type if node else "connection" }}'
+  append: true
+models:
+  schema_evolution_lab:
+    bronze:
+      +schema: bronze
+      +materialized: view
+    silver:
+      +schema: silver
+      +materialized: table
+      +engine: MergeTree()
+    gold:
+      +schema: gold
+      +materialized: table
+      +engine: MergeTree()

@@ -1,0 +1,98 @@
+# ==================== PYTHON ====================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.env
+.venv
+venv/
+ENV/
+env/
+.envrc
+
+# ==================== DBT ====================
+dbt_datamesh/target/
+dbt_datamesh/dbt_packages/
+dbt_datamesh/logs/
+dbt_datamesh/.user.yml
+dbt_datamesh/package-lock.yml
+dbt_datamesh/*.db
+
+# ==================== DOCKER ====================
+.dockerignore
+docker-compose.override.yml
+*.env.docker
+!example.env
+
+# ==================== KAFKA / CDC ====================
+*.log
+kafka-logs/
+zookeeper-logs/
+connect.offsets
+connect.status
+connect.configs
+
+# ==================== LOCAL DATA / SEEDS ====================
+*.csv
+*.parquet
+*.avro
+*.jsonl
+/tmp/
+temp/
+data/raw/
+data/processed/
+
+# ==================== IDE ====================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# ==================== OS ====================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==================== TESTS / COVERAGE ====================
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# ==================== MISC ====================
+*.bak
+*.tmp
+*.temp
+*.pid
+*.seed
+*.pid.lock

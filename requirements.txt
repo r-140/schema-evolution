@@ -1,0 +1,9 @@
+fastapi==0.115.12
+uvicorn==0.34.2
+psycopg[binary]==3.2.6
+confluent-kafka==2.8.2
+clickhouse-connect==0.8.17
+prometheus-client==0.21.1
+requests==2.32.3
+dbt-core==1.9.4
+dbt-clickhouse==1.9.1

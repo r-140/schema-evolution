@@ -1,0 +1,14 @@
+schema_evolution_lab:
+  target: dev
+  outputs:
+    dev:
+      type: clickhouse
+      host: "{{ env_var('CH_HOST', 'clickhouse') }}"
+      port: 8123
+      user: "{{ env_var('CH_USER', 'lab') }}"
+      password: "{{ env_var('CH_PASSWORD', 'lab') }}"
+      schema: silver
+      secure: false
+      threads: 1
+      connect_timeout: 30
+      send_receive_timeout: 1800
