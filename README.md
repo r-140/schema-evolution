@@ -4,6 +4,8 @@
 
 Runnable educational lab focused on **detect → decide → adapt → replay → measure**, rather than only comparing schema-on-read and schema-on-write.
 
+The implementation preserves business payloads using a **schema-on-read foundation in raw Bronze**, then checks approved contracts before affected dbt transformations. Independent branches continue when another branch is held. A schema-on-write hybrid is discussed as an alternative architecture, not an implemented ingestion path; see [the design comparison](docs/hybrid-design.md).
+
 **PostgreSQL → Debezium → Kafka → raw ClickHouse Bronze → dbt Data Vault Silver → star-schema Gold.** Airflow orchestrates builds/replays; Prometheus and Grafana expose review debt, held publication, hidden fields and real query read costs.
 
 ## Quick start (Ubuntu)
@@ -30,6 +32,12 @@ The scripted demo:
 7. Verifies that both yield the same business facts and saves measurements.
 
 Old orders that never carried country remain UNKNOWN. This is deliberate: a replay cannot invent historical values.
+
+## Return to the project
+
+- [Step-by-step demos](docs/demo-guide.md): startup/state checks, 15 scenarios, commands, implementation links, expected outcomes and recovery.
+- [Grafana guide](docs/grafana-guide.md): every panel, alerts, common metric combinations and interpretation limits.
+- [Hybrid design tradeoffs](docs/hybrid-design.md): implemented raw-first schema-on-read foundation, pre-dbt contract gating, and a proposed schema-on-write hybrid with advantages and limitations.
 
 ## Open the lab
 

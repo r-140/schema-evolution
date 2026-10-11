@@ -2,6 +2,8 @@
 
 # Architecture, contracts and ownership
 
+For enforcement boundaries, implemented tradeoffs and a proposed typed-first alternative, see [Hybrid schema evolution](hybrid-design.md).
+
 The ETag variant is detailed in [etag-architecture.md](etag-architecture.md), with actual service responsibilities and CDC, monitoring, approval and transformation flows.
 
 ## Data flow
