@@ -48,6 +48,7 @@ class Generation(BaseModel):
     seed:int=42
 class Approval(BaseModel):
     country:bool=False
+    delivery_channel:bool=False
     amount_field:str='amount'
     amount_type:str='bigint'
     amount_divisor:int=Field(default=100,gt=0)
@@ -75,9 +76,11 @@ def state():
         rows=c.execute('SELECT id,entity,kind,details,first_seen,resolved_at FROM control.changes ORDER BY id').fetchall()
         runs=c.execute('SELECT id,mode,status,details FROM control.runs ORDER BY started_at DESC LIMIT 10').fetchall()
     actual=catalog()
+    from .impact import current, cursors
+    impact=current(actual)
     guard=schema_precondition(get_setting('mode'),get_setting('etag_config',{}),get_setting('contract'),actual)
     return {'catalog':actual,'contract':get_setting('contract'),'mapping':get_setting('mapping'),
-        'mode':get_setting('mode'),'etag_config':get_setting('etag_config'),'cursor':get_setting('cursor'),'publication_blocked':observer.blocked() or guard['hold'],'schema_precondition':guard,
+        'mode':get_setting('mode'),'etag_config':get_setting('etag_config'),'cursor':get_setting('cursor'),'entity_cursors':cursors(),'impact':impact,'publication_blocked':bool(impact['held_models']),'schema_precondition':guard,
         'changes':[dict(zip(['id','entity','kind','details','first_seen','resolved_at'],r)) for r in rows],
         'runs':[dict(zip(['id','mode','status','details'],r)) for r in runs]}
 
@@ -186,11 +189,13 @@ def approve(body:Approval,if_match:str|None=Header(default=None)):
                 if actual['orders'][body.amount_field]['nullable']: raise HTTPException(400,'Required amount must be NOT NULL')
                 if body.country and 'country' not in actual['orders']: raise HTTPException(400,'country missing')
                 if body.amount_field not in ('amount','total_amount'): raise HTTPException(400,'Demo supports amount or total_amount')
+                if body.delivery_channel and 'delivery_channel' not in actual['orders']:
+                    raise HTTPException(400,'delivery_channel missing')
                 mapping={'version':data['mapping']['version']+1,**body.model_dump()}
                 for entity in ('customers','orders'):
                     expected=dict(data['contract'][entity])
                     if entity=='orders':
-                        expected.pop('amount',None);expected.pop('total_amount',None);expected.pop('country',None)
+                        expected.pop('amount',None);expected.pop('total_amount',None);expected.pop('country',None);expected.pop('delivery_channel',None)
                     diff=observer.compare(expected,actual[entity])
                     breaking=[x for x in diff['changes'] if x['severity']=='breaking']
                     if breaking: raise HTTPException(400,{'unsupported_changes':breaking})
@@ -319,7 +324,7 @@ def sync_check():
         for row in expected:
             event=actual.get(row['id'])
             if event is None: mismatches+=1;continue
-            for field in ('updated_at','status','name','segment','country'):
+            for field in ('updated_at','status','name','segment','country','delivery_channel'):
                 if field in row and normalize(row[field])!=normalize(event.get(field)):
                     mismatches+=1;break
         details[entity]={'source_rows':len(expected),'raw_current_rows':len(actual),'mismatched_rows':mismatches}

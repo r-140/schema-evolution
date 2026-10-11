@@ -15,7 +15,7 @@ AND ingest_at <= toDateTime64('{{ var("cutoff", "2100-01-01 00:00:00.000000") }}
     AND ingest_at < toDateTime64('{{ var('to_date') }}',6,'UTC')
     {% endif %}
   {% else %}
-    AND ingest_at > toDateTime64('{{ var("cursor", "1970-01-01 00:00:00.000000") }}',6,'UTC')
+    AND ingest_at > toDateTime64('{{ var("cursor_" ~ entity, var("cursor", "1970-01-01 00:00:00.000000")) }}',6,'UTC')
   {% endif %}
 {% endif %}
 {% endmacro %}

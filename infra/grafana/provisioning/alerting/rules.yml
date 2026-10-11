@@ -6,7 +6,7 @@ groups:
   interval: 10s
   rules:
   - uid: breaking-change
-    title: 'Breaking schema: Gold held'
+    title: 'Schema change: affected models held'
     condition: C
     for: 0s
     noDataState: OK
@@ -19,7 +19,7 @@ groups:
       datasourceUid: prometheus
       model:
         refId: A
-        expr: schema_publication_blocked > bool 0
+        expr: schema_source_impact{held="true"} > bool 0
         instant: true
         intervalMs: 1000
         maxDataPoints: 43200
@@ -49,9 +49,10 @@ groups:
       project: schema-lab
       team: source-and-data
     annotations:
-      summary: 'Breaking schema: Gold held'
-      description: Inspect http://localhost:8090/state. Schema review does not imply
-        data loss; resolve mapping and replay explicitly.
+      summary: 'Schema change: affected models held'
+      description: 'Source {{ $labels.source_schema }}.{{ $labels.source_table }};
+        fields {{ $labels.changed_fields }}; models {{ $labels.affected_models }};
+        held={{ $labels.held }}. Inspect http://localhost:8090/state.' 
   - uid: pending-review
     title: Schema review pending too long
     condition: C
@@ -255,7 +256,7 @@ groups:
       datasourceUid: prometheus
       model:
         refId: A
-        expr: schema_etag_precondition_failed > bool 0
+        expr: schema_source_impact > bool 0
         instant: true
         intervalMs: 1000
         maxDataPoints: 43200
@@ -286,5 +287,6 @@ groups:
       team: source-and-data
     annotations:
       summary: Exact schema token differs from approved contract
-      description: Inspect http://localhost:8090/state. Schema review does not imply
-        data loss; resolve mapping and replay explicitly.
+      description: 'Source {{ $labels.source_schema }}.{{ $labels.source_table }};
+        fields {{ $labels.changed_fields }}; models {{ $labels.affected_models }};
+        held={{ $labels.held }}. Inspect http://localhost:8090/state.' 

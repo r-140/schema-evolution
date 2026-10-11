@@ -1,3 +1,5 @@
+> Publication holds are now scoped to affected source projections and dependent dbt models. Independent branches continue, with separate watermarks. See [scoped holds](scoped-holds.md).
+
 # Backfill cost and correctness
 
 ## Three different repairs

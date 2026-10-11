@@ -1,4 +1,8 @@
+> Publication holds are now scoped to affected source projections and dependent dbt models. Independent branches continue, with separate watermarks. See [scoped holds](scoped-holds.md).
+
 # ETag / If-Match: configurable schema-contract preconditions
+
+For service boundaries and CDC/approval/build sequence diagrams, see [etag-architecture.md](etag-architecture.md).
 
 Two related but different ideas are implemented:
 

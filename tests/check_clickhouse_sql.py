@@ -104,5 +104,10 @@ query("INSERT INTO ops.event_repairs VALUES ('o6',12500,'Reviewed correction','2
 build_model('stg_orders');downstream()
 assert not rows('SELECT * FROM silver.stg_orders WHERE amount_minor IS NULL')
 assert rows("SELECT JSONExtractString(payload,'after','total_amount') original FROM bronze.events WHERE event_id='o6'")[0]['original']=='broken'
+insert('orders','o7',8,{**base,'id':5,'amount':None,'total_amount':'35000','delivery_channel':'online'})
+v['delivery_channel_enabled']=True
+build_model('stg_orders');downstream()
+assert rows("SELECT orders FROM gold.revenue_by_delivery_channel WHERE delivery_channel='online'")[0]['orders']==1
+assert not rows("SELECT f.order_id FROM gold.fact_order f LEFT JOIN gold.dim_delivery_channel c ON f.delivery_channel_sk=c.delivery_channel_sk WHERE c.delivery_channel_sk=''")
 print('PASS: all model SQL; raw dedup; absent historical country; full/targeted equivalence; rename/text replay; updates/deletes; Data Vault and star invariants; invalid amount gate and audited repair')
 session.close();folder.cleanup()

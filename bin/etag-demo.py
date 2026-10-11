@@ -13,9 +13,9 @@ def request(method,path,body=None,headers=None):
                 headers={'Content-Type':'application/json',**(headers or {})})
     try:
         with urlopen(req,timeout=3600) as r:
-            raw=r.read();return r.status,{k.lower(): v for k, v in r.headers.items()},json.loads(raw) if raw else None
+            raw=r.read();return r.status,{k.lower():v for k,v in r.headers.items()},json.loads(raw) if raw else None
     except HTTPError as r:
-        raw=r.read();return r.code,{k.lower(): v for k, v in r.headers.items()},json.loads(raw) if raw else None
+        raw=r.read();return r.code,{k.lower():v for k,v in r.headers.items()},json.loads(raw) if raw else None
 ready();register()
 call('/mode/etag',{})
 call('/config/preconditions',{'schema_policy':'hold','require_if_match':True},'PUT')
@@ -24,7 +24,10 @@ status,headers,resource=request('GET','/contract');assert status==200
 old=headers['etag']
 assert request('GET','/contract',headers={'If-None-Match':old})[0]==304
 call('/migrate/add-country',{});call('/generate',{'count':100});wait()
-assert request('POST','/build',{'mode':'incremental'})[0]==409
+status,_,held=request('POST','/build',{'mode':'incremental'})
+assert status==200 and held['status']=='partial_success'
+assert 'stg_orders' in held['impact']['held_models']
+assert 'dim_customer' in held['impact']['runnable_models']
 schemas=call('/event-schemas')
 checks=[call('/event-precondition/'+s['schema_id']) for s in schemas if s['entity']=='orders']
 assert any(c['reader_compatible'] and not c['matched'] for c in checks)

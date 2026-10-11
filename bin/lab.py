@@ -69,9 +69,10 @@ def smoke():
     call('/mode/strict',{});call('/migrate/rename-amount',{})
     call('/generate',{'count':10,'customers':100});time.sleep(5)
     assert call('/state')['publication_blocked']
-    try:call('/build',{'mode':'incremental'})
-    except RuntimeError:pass
-    else:raise AssertionError('Breaking schema did not hold build')
+    held=call('/build',{'mode':'incremental'})
+    assert held['status']=='partial_success'
+    assert 'stg_orders' in held['impact']['held_models']
+    assert 'dim_customer' in held['impact']['runnable_models']
     call('/mode/hybrid',{});wait()
     call('/approve',{'country':True,'amount_field':'total_amount'})
     call('/build',{'mode':'full'})
@@ -85,6 +86,7 @@ def main():
     parser.add_argument('--count',type=int,default=10000)
     parser.add_argument('--customers',type=int,default=100)
     parser.add_argument('--country',action='store_true')
+    parser.add_argument('--delivery-channel',action='store_true')
     parser.add_argument('--amount-field',default='amount')
     parser.add_argument('--amount-minor',type=int,default=12500)
     parser.add_argument('--policy',default='hold',choices=['hold','warn','off'])
@@ -106,7 +108,7 @@ def main():
     elif cmd=='build':result=call('/build',{'mode':args.value or 'incremental','from_date':args.from_date,'to_date':args.to_date})
     elif cmd=='migrate':result=call('/migrate/'+str(args.value),{})
     elif cmd=='mode':result=call('/mode/'+str(args.value),{})
-    elif cmd=='approve':result=call('/approve',{'country':args.country,'amount_field':args.amount_field,'amount_type':args.amount_type,'amount_divisor':args.amount_divisor})
+    elif cmd=='approve':result=call('/approve',{'country':args.country,'delivery_channel':args.delivery_channel,'amount_field':args.amount_field,'amount_type':args.amount_type,'amount_divisor':args.amount_divisor})
     elif cmd in ('mutate','delete'):result=call('/mutate',{'order_id':int(args.value or 1),'status':'paid','delete':cmd=='delete'})
     elif cmd=='enrich-country':result=call('/source-enrich-country?limit='+str(args.value or args.count),{})
     elif cmd=='etag-config':result=call('/config/preconditions',{'schema_policy':args.policy,'require_if_match':args.require_if_match=='true'},'PUT')

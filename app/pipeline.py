@@ -28,10 +28,14 @@ def command(args, variables, log):
 
 def execute(mode='incremental', from_date='', to_date='', cutoff=None):
     observed=scan_catalog()
-    precondition=schema_precondition(get_setting('mode'),get_setting('etag_config',{}),get_setting('contract'),observed)
-    if precondition['hold']:
-        raise ValueError('Exact schema precondition failed: observed source differs from approved contract, even if reader-compatible. Bronze continues; review and conditional approval required.')
-    if blocked(): raise ValueError('Publication held: unresolved breaking/semantic change. Bronze continues in hybrid mode.')
+    from .impact import current, cursors, ROOTS
+    impact = current(observed)
+    allowed = set(impact['runnable_models'])
+    positions = cursors()
+    if not any(root in allowed for root in ROOTS.values()):
+        raise ValueError('All source projections held: '+json.dumps(impact))
+    if mode != 'incremental' and impact['held_models']:
+        raise ValueError('Replay requires an unblocked dependency graph: '+json.dumps(impact))
     mapping = get_setting('mapping')
     if mode == 'targeted' and not mapping['country']:
         raise ValueError('Targeted country replay requires country mapping approval.')
@@ -43,8 +47,10 @@ def execute(mode='incremental', from_date='', to_date='', cutoff=None):
     marker = 'schema_lab_run='+run_id
     variables = {'run_id':run_id,'cursor':get_setting('cursor'),'cutoff':cutoff,
         'replay_mode':mode,'mapping_version':mapping['version'],'country_enabled':mapping['country'],
+        'delivery_channel_enabled':mapping.get('delivery_channel',False),
         'amount_field':mapping['amount_field'],'amount_divisor':mapping['amount_divisor'],
-        'from_date':from_date,'to_date':to_date}
+        'from_date':from_date,'to_date':to_date,
+        **{'cursor_'+entity: value for entity,value in positions.items()}}
     Path('/lab/artifacts').mkdir(exist_ok=True)
     log = Path('/lab/artifacts')/f'{run_id}.log'
     started = datetime.now(timezone.utc)
@@ -54,19 +60,25 @@ def execute(mode='incremental', from_date='', to_date='', cutoff=None):
     status = 'failed'
     details = {}
     try:
-        if mode == 'incremental':
-            args = ['run','--select','raw_events stg_customers stg_orders']
-        else:
-            args = ['run','--select','raw_events stg_orders']
-            if mode == 'full': args += ['--full-refresh']
+        staging = allowed & {'raw_events','stg_customers','stg_orders'}
+        if mode != 'incremental': staging.discard('stg_customers')
+        args = ['run','--select',' '.join(sorted(staging))]
+        if mode == 'full': args += ['--full-refresh']
         command(args,variables,log)
-        # Gate Gold on projected-data validation, including nonnumeric/negative amounts.
-        command(['test','--select','stg_orders stg_customers valid_amount','--indirect-selection','cautious'],variables,log)
-        command(['run','--exclude','raw_events stg_customers stg_orders'],variables,log)
-        command(['test'],variables,log)
-        if mode == 'incremental': set_setting('cursor',cutoff)
-        set_setting('last_gold_success',time.time())
-        status = 'success'
+        command(['test','--select',' '.join(sorted(staging)),
+                 '--indirect-selection','cautious'],variables,log)
+        downstream = allowed - {'raw_events','stg_customers','stg_orders'}
+        if downstream:
+            command(['run','--select',' '.join(sorted(downstream))],variables,log)
+        command(['test','--select',' '.join(sorted(allowed)),
+                 '--indirect-selection','cautious'],variables,log)
+        if mode == 'incremental':
+            for entity,root in ROOTS.items():
+                if root in staging: positions[entity] = cutoff
+            set_setting('entity_cursors',positions)
+            set_setting('cursor',min(positions.values()))
+        if not impact['held_models']: set_setting('last_gold_success',time.time())
+        status = 'partial_success' if impact['held_models'] else 'success'
     except Exception as exc:
         details['error'] = str(exc)
     elapsed = time.monotonic()-begin
@@ -75,11 +87,12 @@ def execute(mode='incremental', from_date='', to_date='', cutoff=None):
     except Exception as exc:
         details.update(read_rows=0,read_bytes=0,downstream_read_rows=0,downstream_read_bytes=0,query_count=0,validation_read_rows=0,validation_read_bytes=0,overhead_read_rows=0,overhead_read_bytes=0,
                        query_log_error=str(exc))
+    details.update(impact=impact,entity_cursors=positions)
     details.update(run_id=run_id,mode=mode,status=status,elapsed_seconds=elapsed,cutoff=cutoff,log=log.name)
     # Count projected source events from the same bounded candidate definition.
     # dbt generated SQL is authoritative; report projection result count as a supplemental metric.
     candidate = client.query('SELECT count() FROM silver.stg_orders WHERE mapping_version={version:UInt64}',
-        parameters={'version':mapping['version']}).first_row[0] if status=='success' else 0
+        parameters={'version':mapping['version']}).first_row[0] if status in ('success','partial_success') and 'stg_orders' in allowed else 0
     details['projected_events_at_current_version'] = candidate
     client.insert('ops.backfill_runs',[[run_id,mode,started,elapsed,candidate,details['read_rows'],details['read_bytes'],
         details['downstream_read_rows'],details['downstream_read_bytes'],details['query_count'],
@@ -87,7 +100,7 @@ def execute(mode='incremental', from_date='', to_date='', cutoff=None):
     with pg() as c:
         c.execute('UPDATE control.runs SET status=%s,finished_at=now(),details=%s WHERE id=%s',(status,Jsonb(details),run_id))
     Path('/lab/artifacts',f'{run_id}.json').write_text(json.dumps(details,indent=2))
-    if status != 'success': raise RuntimeError(json.dumps(details))
+    if status == 'failed': raise RuntimeError(json.dumps(details))
     return details
 
 def run(mode='incremental',from_date='',to_date=''):
@@ -97,14 +110,19 @@ def run(mode='incremental',from_date='',to_date=''):
 
 def checksum(client):
     # Exclude mapping_version: provenance differs, business result must match.
-    return client.query("SELECT count(),sum(cityHash64(toJSONString(tuple(order_id,customer_sk,date_sk,country_sk,currency_sk,amount,status)))) FROM gold.fact_order").first_row
+    return client.query("SELECT count(),sum(cityHash64(toJSONString(tuple(order_id,customer_sk,date_sk,country_sk,currency_sk,delivery_channel_sk,amount,status)))) FROM gold.fact_order").first_row
 
 def compare_backfills():
     if not LOCK.acquire(blocking=False): raise ValueError('Another build/backfill is running.')
     client = ch()
     backup = 'ops.compare_stg_orders_'+uuid.uuid4().hex
     try:
+        from .impact import current
+        if current(scan_catalog())['held_models']:
+            raise ValueError('Resolve schema holds before comparing replays.')
         mapping = get_setting('mapping')
+        if mapping.get('delivery_channel',False):
+            raise ValueError('compare is country-only. Use full replay for delivery_channel; country targeted selector cannot repair arbitrary fields.')
         if not mapping['country']: raise ValueError('Approve country mapping first.')
         if not client.query("SELECT count() FROM system.tables WHERE database='silver' AND name='stg_orders'").first_row[0]:
             raise ValueError('Run initial build first.')

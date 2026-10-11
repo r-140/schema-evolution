@@ -1,3 +1,5 @@
+> Publication holds are now scoped to affected source projections and dependent dbt models. Independent branches continue, with separate watermarks. See [scoped holds](docs/scoped-holds.md).
+
 # CDC Schema Evolution Lab
 
 Runnable educational lab focused on **detect → decide → adapt → replay → measure**, rather than only comparing schema-on-read and schema-on-write.
@@ -79,6 +81,8 @@ python3 bin/etag-demo.py
 Real HTTP `GET/PUT /contract` prevents stale approval with ETag/If-Match and atomic control-setting locks. Separately, exact writer-schema preconditions distinguish “compatible” from “reviewed version”. Bronze keeps ingesting. Policies `hold`, `warn`, `off` are configurable at runtime or through first-start environment defaults. See [docs/etag-preconditions.md](docs/etag-preconditions.md) for configuration, two-reviewer conflicts and interview discussion.
 
 **Per-event behavior:** the sink computes a schema fingerprint and checks its local cache; it does not call a schema REST API for every event. Exact ETag-mode catalog matching runs before dbt builds. See the per-event/cache/REST section in [docs/etag-preconditions.md](docs/etag-preconditions.md).
+
+ETag architecture and sequence diagrams: [docs/etag-architecture.md](docs/etag-architecture.md).
 
 ## Add delivery_channel to Gold
 

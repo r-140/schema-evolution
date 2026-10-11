@@ -1,4 +1,8 @@
+> Publication holds are now scoped to affected source projections and dependent dbt models. Independent branches continue, with separate watermarks. See [scoped holds](scoped-holds.md).
+
 # Architecture, contracts and ownership
+
+The ETag variant is detailed in [etag-architecture.md](etag-architecture.md), with actual service responsibilities and CDC, monitoring, approval and transformation flows.
 
 ## Data flow
 
@@ -42,7 +46,7 @@ Approval in this demo resolves outstanding changes as a batch. In production use
 | ClickHouse/control DB unavailable | Sink retries uncommitted batch | Same |
 | New malformed envelope | Sink retries, no offset advancement | Same |
 
-The strict branch intentionally demonstrates coupling: a single breaking change can hold the sink batch, including other tables. For production isolation use per-domain workers/consumers and affected-model publication gates. The hybrid build gate is also global in this small lab. Connector itself continues producing in strict mode; it is sink consumption that stops, not a claim that source CDC always crashes.
+The strict branch intentionally demonstrates coupling: a single breaking change can hold the sink batch, including other tables. For production isolation use per-domain workers/consumers and affected-model publication gates. The hybrid/etag build gate isolates affected model branches; see scoped-holds.md. Connector itself continues producing in strict mode; it is sink consumption that stops, not a claim that source CDC always crashes.
 
 A commit can fail after ClickHouse insert succeeds. Raw duplicates are allowed. Explicit amount corrections are stored separately in append-only `ops.event_repairs`; latest approved correction per transport event changes projection interpretation while original raw bytes remain intact. Stable `event_id = topic:partition:offset` deduplicates projection records. This is at-least-once ingestion, not distributed exactly-once. Original key, schema, complete envelope, payload, operation, LSN, source time and ingestion time are retained, including tombstones. `REPLICA IDENTITY FULL` supplies before values for delete demos.
 

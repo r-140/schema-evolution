@@ -20,3 +20,13 @@ ETag/configurable-precondition update:
 - 6 HTTP API tests with mocked control storage passed (200/304/400/412/428, stale second reviewer, runtime configuration).
 - Total: 23 standard-library unit tests plus 6 HTTP tests. PostgreSQL row-lock concurrency itself remains a Docker integration check.
 - `bin/etag-demo.py` supplies an end-to-end fresh-stack scenario; it has not been executed here because Docker is unavailable.
+
+Delivery channel upgrade:
+- 23 unit tests and 8 HTTP tests passed.
+- dbt parse and embedded ClickHouse model execution passed, including channel projection/Gold relationships.
+- dbt cautious staging test selection verified to exclude Gold-dependent tests.
+- Full container integration of the new channel models is still not executed here.
+
+## Scoped publication holds
+
+Passed 28 unit tests, 8 mocked ETag HTTP tests, one mocked runner checkpoint regression, dbt parse (17 models), and all model SQL checks with embedded ClickHouse. The runner regression verifies customer advancement does not move the held order watermark or select held models. Docker/Grafana end-to-end checks were not run in the authoring environment.

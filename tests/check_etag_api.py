@@ -61,6 +61,15 @@ class HTTPChecks(unittest.TestCase):
         self.assertEqual(self.client.put('/contract',json={}).status_code,428)
     def test_invalid_policy(self):
         self.assertEqual(self.client.put('/config/preconditions',json={'schema_policy':'typo'}).status_code,400)
+    def test_channel_mapping_approval(self):
+        self.actual['orders']['delivery_channel']={'type':'text','nullable':True,'primary_key':False}
+        tag=self.client.get('/contract').headers['etag']
+        response=self.client.put('/contract',json={'country':True,'delivery_channel':True},headers={'If-Match':tag})
+        self.assertEqual(response.status_code,200,response.text)
+        self.assertTrue(self.state['mapping']['delivery_channel'])
+    def test_channel_mapping_requires_source_field(self):
+        tag=self.client.get('/contract').headers['etag']
+        self.assertEqual(self.client.put('/contract',json={'delivery_channel':True},headers={'If-Match':tag}).status_code,400)
     def test_weak_token_rejected(self):
         tag=self.client.get('/contract').headers['etag']
         self.assertEqual(self.client.put('/contract',json={},headers={'If-Match':'W/'+tag}).status_code,400)

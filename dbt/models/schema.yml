@@ -24,3 +24,7 @@ models:
     columns:
       - name: order_sk
         tests: [unique, not_null]
+  - name: dim_delivery_channel
+    columns:
+      - name: delivery_channel_sk
+        tests: [unique, not_null]

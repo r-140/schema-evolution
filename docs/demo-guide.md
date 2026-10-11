@@ -35,7 +35,7 @@ Watch pending additive review, UNKNOWN country facts, replay debt and read bytes
 ./bin/dev generate 100
 ./bin/dev wait
 ./bin/dev state
-./bin/dev build                       # expected 409, unresolved breaking change
+./bin/dev build                       # expected partial_success: order branch held, customer branch continues
 ./bin/dev approve --amount-field total_amount
 ./bin/dev build full
 ./bin/dev gold-summary
@@ -119,7 +119,7 @@ The old writer must also be retired before dropping its field in a real applicat
 ```bash
 ./bin/dev semantic-change
 ./bin/dev state
-./bin/dev build                      # expected held publication
+./bin/dev build                      # expected partial_success with affected models held
 ```
 
 The semantic marker demonstrates an explicit migration notification; a catalog fingerprint cannot infer units. `--amount-divisor` is available for controlled mapping experiments, but changing one global divisor and full-replaying mixed historical units is wrong. A real minor→major transition needs schema/contract version or an effective boundary and per-version interpretation. Do not approve this scenario as if structural compatibility proved correctness.

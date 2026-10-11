@@ -30,8 +30,13 @@ SELECT event_id, JSONExtractInt(body,'id') AS order_id,
  {% else %}
  CAST(NULL AS Nullable(String)) AS country,
  {% endif %}
+ {% if var('delivery_channel_enabled',false) %}
+ nullIf(JSONExtractString(body,'delivery_channel'),'') AS delivery_channel,
+ {% else %}
+ CAST(NULL AS Nullable(String)) AS delivery_channel,
+ {% endif %}
  toDate(parseDateTime64BestEffort(JSONExtractString(body,'ordered_at'),6,'UTC')) AS order_date,
  CAST(op='d' AS UInt8) AS is_deleted,source_lsn,kafka_offset,ingest_at AS load_ts, topic AS record_source,
- lower(hex(SHA256(toJSONString(tuple(amount_minor,currency,status,country,order_date,is_deleted))))) AS hashdiff,
+ lower(hex(SHA256(toJSONString(tuple(amount_minor,currency,status,country,delivery_channel,order_date,is_deleted))))) AS hashdiff,
  {{ var('mapping_version',1) }} AS mapping_version
 FROM amounts

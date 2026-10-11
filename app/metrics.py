@@ -4,6 +4,9 @@ from prometheus_client import Gauge, Counter
 from .storage import ch, pg, get_setting,catalog
 from .etag import schema_precondition
 
+IMPACT=Gauge('schema_source_impact','Source drift and affected dbt models',
+    ['source_schema','source_table','changed_fields','affected_models','held'])
+
 ETAG_MISMATCH=Gauge('schema_etag_precondition_failed','Exact source-schema precondition failed in etag mode')
 PENDING=Gauge('schema_changes_pending','Unresolved schema reviews',['severity'])
 AGE=Gauge('schema_change_oldest_seconds','Age of oldest unresolved review')
@@ -19,6 +22,13 @@ FAILURES=Gauge('pipeline_failed_runs_total','Persistent count of failed dbt runs
 OBSERVER_OK=Gauge('schema_observer_up','Catalog/metrics observation succeeded')
 
 def refresh():
+    from .impact import current, cursors
+    impact=current()
+    IMPACT.clear()
+    for scope in impact['sources'].values():
+        IMPACT.labels(scope['source_schema'],scope['source_table'],
+            ','.join(scope['changed_fields']),','.join(scope['affected_models']),
+            str(scope['held']).lower()).set(bool(scope['reasons']))
     precondition=schema_precondition(get_setting('mode'),get_setting('etag_config',{}),get_setting('contract'),catalog())
     ETAG_MISMATCH.set(precondition['mismatch'])
     with pg() as c:
@@ -31,7 +41,7 @@ def refresh():
     client=ch()
     RAW.set(client.query('SELECT count() FROM bronze.events').first_row[0])
     SINK_AGE.set(client.query("SELECT if(count()=0,0,dateDiff('second',max(ingest_at),now())) FROM bronze.events").first_row[0])
-    BACKLOG.set(client.query("SELECT count() FROM bronze.events WHERE ingest_at > toDateTime64({cursor:String},6,'UTC')",parameters={'cursor':get_setting('cursor')}).first_row[0])
+    BACKLOG.set(client.query("SELECT count() FROM bronze.events WHERE ingest_at > toDateTime64({cursor:String},6,'UTC')",parameters={'cursor':min(cursors().values())}).first_row[0])
     GOLD_AGE.set(time.time()-get_setting('last_gold_success',time.time()))
     tables=client.query("SELECT concat(database,'.',name) FROM system.tables WHERE database IN ('silver','gold')").result_rows
     names={r[0] for r in tables}

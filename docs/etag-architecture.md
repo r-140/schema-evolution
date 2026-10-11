@@ -1,3 +1,5 @@
+> Publication holds are now scoped to affected source projections and dependent dbt models. Independent branches continue, with separate watermarks. See [scoped holds](scoped-holds.md).
+
 # ETag variant: services, CDC flow and contract control
 
 This describes the **actual runnable lab**, not a hypothetical registry-backed implementation. The variant reuses the ordinary CDC transport. ETag introduces a contract approval protocol and configurable schema preconditions around transformation/publication.
@@ -139,15 +141,15 @@ sequenceDiagram
     A->>L: POST /build, mode and optional replay bounds
     L->>P: Read catalog, accepted contract and run settings
     alt Hold-mode exact mismatch or unresolved breaking change
-        L-->>A: 409, publication refused
-        Note over C: No model build starts; Bronze ingestion continues
+        L-->>A: 200 partial success, or 409 if all projections held
+        Note over C: Independent models build; Bronze ingestion continues
     else Publication may proceed
         Note over L: Freeze cutoff and reader revision for the run
         L->>C: dbt project raw events into staging
         L->>C: Run staging-only validation tests
         L->>C: Build Vault and Gold models
-        L->>C: Run complete validation tests
-        L->>P: Record success and normal cursor if incremental
+        L->>C: Validate eligible models with cautious test selection
+        L->>P: Record branch success and per-entity cursors
         L->>C: Collect tagged query-log read costs
         L-->>A: Run result and measurements
     end
