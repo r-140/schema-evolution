@@ -26,7 +26,7 @@ def wait(timeout=180):
                 stable+=1
                 if stable>=3: return state
             else: stable=0
-        except (URLError,RuntimeError): stable=0
+        except (URLError,RuntimeError,ConnectionError,TimeoutError): stable=0
         time.sleep(2)
     raise RuntimeError('CDC did not synchronize; inspect ./bin/dev cdc-status, ./bin/dev state and logs. Strict mode may intentionally hold ingestion.')
 
@@ -34,14 +34,14 @@ def ready(timeout=180):
     end=time.time()+timeout
     while time.time()<end:
         try: return call('/health')
-        except (URLError,RuntimeError): time.sleep(2)
+        except (URLError,RuntimeError,ConnectionError,TimeoutError): time.sleep(2)
     raise RuntimeError('Lab API not ready')
 
 def register():
     end=time.time()+180
     while time.time()<end:
         try:return call('/register-cdc',{},'POST')
-        except (URLError,RuntimeError):time.sleep(2)
+        except (URLError,RuntimeError,ConnectionError,TimeoutError):time.sleep(2)
     raise RuntimeError('Connect not ready for connector registration')
 
 def demo(count):

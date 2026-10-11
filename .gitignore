@@ -27,13 +27,15 @@ ENV/
 env/
 .envrc
 
+artifacts
+
 # ==================== DBT ====================
-dbt_datamesh/target/
-dbt_datamesh/dbt_packages/
-dbt_datamesh/logs/
-dbt_datamesh/.user.yml
-dbt_datamesh/package-lock.yml
-dbt_datamesh/*.db
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/.user.yml
+dbt/package-lock.yml
+dbt/*.db
 
 # ==================== DOCKER ====================
 .dockerignore

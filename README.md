@@ -78,6 +78,12 @@ python3 bin/etag-demo.py
 
 Real HTTP `GET/PUT /contract` prevents stale approval with ETag/If-Match and atomic control-setting locks. Separately, exact writer-schema preconditions distinguish “compatible” from “reviewed version”. Bronze keeps ingesting. Policies `hold`, `warn`, `off` are configurable at runtime or through first-start environment defaults. See [docs/etag-preconditions.md](docs/etag-preconditions.md) for configuration, two-reviewer conflicts and interview discussion.
 
+**Per-event behavior:** the sink computes a schema fingerprint and checks its local cache; it does not call a schema REST API for every event. Exact ETag-mode catalog matching runs before dbt builds. See the per-event/cache/REST section in [docs/etag-preconditions.md](docs/etag-preconditions.md).
+
+## Add delivery_channel to Gold
+
+See [docs/delivery-channel.md](docs/delivery-channel.md) for upgrading the running lab, explicit reader approval and full raw replay. Includes `dim_delivery_channel`, a fact FK and a channel report.
+
 ## Verification
 
 ```bash

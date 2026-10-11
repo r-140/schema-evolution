@@ -95,3 +95,58 @@ The runtime exact gate is evaluated at a **build boundary** against current cata
 Call this **optimistic concurrency for data-contract approval** and **version preconditions for schema drift**. It is an application of established ETags/versioned contracts, not a claim that hashing schemas is a newly invented algorithm. Discuss stale updates, atomic compare-and-set, the difference between equality and compatibility, cache invalidation, historical versions, rollout ownership and backfill costs.
 
 HTTP semantics reference: https://www.rfc-editor.org/rfc/rfc9110.html#name-if-match
+
+## Does every CDC event cause an ETag check or REST call?
+
+**No REST request for schema validation is sent per CDC event in this implementation.** There are three separate mechanisms:
+
+| Mechanism | When | What actually happens |
+|---|---|---|
+| Raw sink event-schema registration | Each non-tombstone CDC event carrying a schema | Compute its schema fingerprint and check a process-local cache |
+| Reader compatibility analysis | Previously unseen schema fingerprint | Read the control registry, and if absent compare required fields/types with the current reader; persist and cache the result |
+| Exact schema precondition in `etag` mode | Before each dbt build | Compare current source catalog with approved source contract; hold/warn/off policy applies |
+| Source drift monitoring | Approximately every five seconds | Poll PostgreSQL catalog; update change state and metrics. A monitoring cycle can make more than one catalog read |
+| HTTP contract ETag / If-Match | A client reads or approves the contract | GET `/contract`, then conditional PUT `/contract`; check and update under PostgreSQL row locks |
+
+For a cache hit, `register_event()` returns the cached compatibility decision. No Registry REST request or control-database lookup is made by that function. On a cache miss, it queries **PostgreSQL**, not a remote Schema Registry API. If the schema was already persisted, it reloads that decision; otherwise it performs compatibility analysis and stores the result.
+
+The sink does read operational mode/control settings per batch (up to 500 events), and strict mode checks unresolved breaking changes. These are direct control-database reads, not HTTP ETag requests. ClickHouse data insertion uses batched HTTP under the client library: this is data transport, not an HTTP schema-validation round trip per event.
+
+### What is still repeated for each event?
+
+The producer uses embedded Connect JSON schemas. The sink parses the envelope and serializes/hashes its schema for every event before cache lookup. Hashing is O(schema size), not a constant-time externally assigned ID comparison. The cache avoids repeated compatibility analysis/database access, but does **not** eliminate this CPU or the redundant schema bytes on the wire.
+
+For 100,000 events with one unchanged schema and a warm cache:
+
+- 100,000 local fingerprint computations/cache lookups;
+- zero per-event schema REST requests;
+- zero per-event registry database lookups on cache hits;
+- separate batch-level control reads and batched warehouse inserts;
+- periodic catalog observation independent of event count.
+
+On first encounter after startup there may be a control registry read. Restart, eviction from the bounded 512-entry cache, or approval invalidation causes another cache miss. This example is not a promise that total network traffic is zero.
+
+### Cache invalidation on approval
+
+`/contract` and legacy `/approve` update the mapping and persisted allowed decisions, then clear the local cache. The in-memory cache has a generation counter to prevent a result started before invalidation from being stored as a current cached result afterward. This is local-process coordination, not a distributed consistency guarantee. Historical schemas remain available for explicit replay; older event fingerprints are not automatically rejected just because a new version was approved.
+
+## How to reduce REST redundancy in a production variant
+
+If a Registry/contract API is remote, use it as a **control plane**:
+
+1. Carry a `schema_id` or canonical fingerprint in each event/header, instead of carrying/re-hashing the full schema. Producer registration can happen once per new schema version. This needs a producer/converter change; the current embedded-JSON pipeline does not already provide this optimization.
+2. Cache schema definitions and decisions locally. Key decisions by `(source/subject, writer_schema_id, reader_contract_revision)`: the same writer can become readable after the consumer mapping changes.
+3. Fetch/check only an unknown writer version. Reuse the cached result for its following events.
+4. Coalesce concurrent cache misses for the same key (“single flight”), preventing a new schema from causing hundreds of identical requests. Brief negative caching/backoff prevents retry storms for an unresolved version.
+5. Notify consumers when a contract revision is approved, using a control topic or watch stream. Invalidate affected cache entries. Use periodic conditional GET as a fallback/reconciliation path.
+6. Pin a reviewed reader revision for each transformation run. On an unknown version, preserve raw data and hold the affected projection or emit one actionable review alert, according to policy.
+
+`If-None-Match` with a cached ETag can return **304** and reduce response bytes; it still sends a request and incurs a round trip. It is useful for infrequent refresh, not an optimization that makes a per-event REST call cheap or removes it.
+
+Schema definition cache and compatibility-decision cache have different lifetimes: an immutable schema-ID definition can survive a reader update, but the decision must be invalidated/versioned. Schema equality, reader compatibility, business correctness and HTTP optimistic concurrency remain separate checks.
+
+### An accurate interview description
+
+> CDC events carry a schema identity. Consumers check a local cache and contact the registry only on an unknown version or control-plane refresh. Compatibility decisions are tied to the reader revision. ETag/If-Match protects contract approval from stale updates, while the ingestion path preserves raw events and avoids per-record REST validation. Conditional GET reduces refresh payload, but caching and change notifications reduce request count.
+
+For this pet project, explicitly say that fingerprint computation is per event, compatibility analysis is per new schema, and the exact catalog equality gate is per build. Do not claim a Kafka-native If-Match header or a per-event HTTP ETag transaction.

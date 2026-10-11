@@ -61,7 +61,7 @@ def execute(mode='incremental', from_date='', to_date='', cutoff=None):
             if mode == 'full': args += ['--full-refresh']
         command(args,variables,log)
         # Gate Gold on projected-data validation, including nonnumeric/negative amounts.
-        command(['test','--select','stg_orders stg_customers valid_amount'],variables,log)
+        command(['test','--select','stg_orders stg_customers valid_amount','--indirect-selection','cautious'],variables,log)
         command(['run','--exclude','raw_events stg_customers stg_orders'],variables,log)
         command(['test'],variables,log)
         if mode == 'incremental': set_setting('cursor',cutoff)
